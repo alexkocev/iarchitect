@@ -3,11 +3,10 @@ from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
-
 from .base_env import BaseEnv
 
 
-class AlignedRowEnv(BaseEnv):
+class TensorEnv(BaseEnv):
     def __init__(self,dimension,
                  action_float=False,
                  fail_on_same=True,
@@ -20,17 +19,18 @@ class AlignedRowEnv(BaseEnv):
                  }):
         super().__init__()
         self.dimension = dimension
-        self._state = np.zeros((self.dimension,),dtype=np.int32)
+        self._state = np.zeros((self.dimension,self.dimension),dtype=np.int32)
         self._iter = 0
         self._max_iter = max_iter
         if action_float:
             self._action_spec = array_spec.BoundedArraySpec(
-                shape=(), dtype=np.float32, minimum=-0.49, maximum=self.dimension+0.49, name='action')
+                shape=(2,), dtype=np.float32, minimum=-0.49, maximum=self.dimension-0.51, name='action')
         else:
             self._action_spec = array_spec.BoundedArraySpec(
-                shape=(), dtype=np.int32, minimum=0, maximum=self.dimension-1, name='action')
+                shape=(2,), dtype=np.int32, minimum=0, maximum=self.dimension-1, name='action')
         self._observation_spec = array_spec.BoundedArraySpec(
-            shape=(self._state.shape[0],), dtype=np.int32, minimum=0, name='observation')
+            shape=self._state.shape + (1,), dtype=np.int32, minimum=0, name='observation')
+
 
         self._episode_ended = False
         self.fail_on_same = fail_on_same
@@ -43,15 +43,15 @@ class AlignedRowEnv(BaseEnv):
     def observation_spec(self):
         return self._observation_spec
 
+    def to_observation(self):
+        return np.expand_dims(self._state.copy(),axis=-1)
+
     def _reset(self):
-        self._state = np.zeros((self.dimension,),dtype=np.int32)
+        self._state = np.zeros((self.dimension,self.dimension),dtype=np.int32)
         self._iter = 0
         self._episode_ended = False
         return ts.restart(self.to_observation())
 
-
-    def to_observation(self):
-        return self._state.copy()
 
     def _step(self, action):
         """
@@ -66,8 +66,8 @@ class AlignedRowEnv(BaseEnv):
         self._iter += 1
 
         # Make sure episodes don't go on forever.
-        action_ = action.round().astype(int)
-        assert action_ in list(range(self._state.shape[0]))
+        action_ = tuple(action.round().astype(int))
+        # assert action_ in list(range(self._state.shape[0]))
 
         if self._state[action_]==1:
             # DEJA RENSEIGNE
