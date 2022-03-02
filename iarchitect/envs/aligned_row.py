@@ -20,10 +20,10 @@ class AlignedRowEnv(py_environment.PyEnvironment):
         self._max_iter = max_iter
         if action_float:
             self._action_spec = array_spec.BoundedArraySpec(
-                shape=(), dtype=np.float32, minimum=-0.49, maximum=3.49, name='action')
+                shape=(), dtype=np.float32, minimum=-0.49, maximum=self.dimension+0.49, name='action')
         else:
             self._action_spec = array_spec.BoundedArraySpec(
-                shape=(), dtype=np.int32, minimum=0, maximum=3, name='action')
+                shape=(), dtype=np.int32, minimum=0, maximum=self.dimension-1, name='action')
         self._observation_spec = array_spec.BoundedArraySpec(
             shape=(self._state.shape[0],), dtype=np.int32, minimum=0, name='observation')
 
@@ -42,7 +42,7 @@ class AlignedRowEnv(py_environment.PyEnvironment):
         self._state = np.zeros((self.dimension,),dtype=np.int32)
         self._iter = 0
         self._episode_ended = False
-        return ts.restart(self._state)
+        return ts.restart(self._state.copy())
 
 
     def _step(self, action):
@@ -79,8 +79,8 @@ class AlignedRowEnv(py_environment.PyEnvironment):
 
         if not self._episode_ended:
             result = ts.transition(
-                self._state, reward=reward, discount=1)
+                self._state.copy(), reward=reward, discount=1)
 
         else:
-            result = ts.termination(self._state, reward)
+            result = ts.termination(self._state.copy(), reward)
         return result
