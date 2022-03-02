@@ -1,5 +1,5 @@
 def show_policy_behaviour(environment,policy,max_iter):
-    time_step = environment.reset()
+    time_step = environment.current_time_step()
     iter_ = 0.0
     results = [(None,None,time_step.observation.numpy())]
     while not time_step.is_last() and iter_<=max_iter:
