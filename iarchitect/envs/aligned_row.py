@@ -9,6 +9,7 @@ from .base_env import BaseEnv
 
 class AlignedRowEnv(BaseEnv):
     def __init__(self,dimension,
+                 observation_1D=True,
                  action_float=False,
                  fail_on_same=True,
                  max_iter=50,
@@ -29,8 +30,14 @@ class AlignedRowEnv(BaseEnv):
         else:
             self._action_spec = array_spec.BoundedArraySpec(
                 shape=(), dtype=np.int32, minimum=0, maximum=self.dimension-1, name='action')
-        self._observation_spec = array_spec.BoundedArraySpec(
-            shape=(self._state.shape[0],), dtype=np.int32, minimum=0, name='observation')
+
+        self.observation_1D = observation_1D
+        if not self.observation_1D:
+            self._observation_spec = array_spec.BoundedArraySpec(
+                shape=(int(self.dimension**0.5),int(self.dimension**0.5)), dtype=np.int32, minimum=0, name='observation')
+        else:
+            self._observation_spec = array_spec.BoundedArraySpec(
+                shape=(self._state.shape[0],), dtype=np.int32, minimum=0, name='observation')
 
         self._episode_ended = False
         self.fail_on_same = fail_on_same
@@ -51,7 +58,10 @@ class AlignedRowEnv(BaseEnv):
 
 
     def to_observation(self):
-        return self._state.copy()
+        if not self.observation_1D:
+            return self._state.reshape((int(self.dimension**0.5),int(self.dimension**0.5))).copy()
+        else:
+            self._state.copy()
 
     def _step(self, action):
         """
