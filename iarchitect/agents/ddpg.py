@@ -1,12 +1,6 @@
-import numpy as np
 from tf_agents.agents import DdpgAgent
-from tf_agents.utils import common
-from tf_agents.networks import sequential
-from tf_agents.agents import ddpg
 
-from tensorflow.keras import layers
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras import initializers
 
 
 
@@ -32,13 +26,13 @@ def agent_factory(tf_env,
     #         fc_layer_params=[tuple(np.fromiter(tf_env.observation_spec().shape,dtype=int)*10)]*3)
     #     # PAR DEFAUT 3 LAYER DIX FOIS LA SHAPE DE L'OBSERVATION
 
+    kwargs_agent.setdefault("actor_optimizer",Adam(learning_rate=learning_rate_actor))
+    kwargs_agent.setdefault("critic_optimizer",Adam(learning_rate=learning_rate_critic))
     agent = DdpgAgent(
         tf_env.time_step_spec(),
         tf_env.action_spec(),
         actor_network,
         critic_network,
-        actor_optimizer=Adam(learning_rate=learning_rate_actor),
-        critic_optimizer=Adam(learning_rate=learning_rate_critic),
         **kwargs_agent)
 
 #     actor_network: tf_agents.networks.Network,
