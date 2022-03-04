@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from tf_agents.environments import py_environment
 
@@ -11,3 +12,4 @@ class BaseEnv(py_environment.PyEnvironment):
 
     def to_observation(self):
         return self._state.copy()
+
