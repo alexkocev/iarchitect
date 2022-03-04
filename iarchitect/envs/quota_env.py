@@ -1,16 +1,66 @@
-import itertools
-
 import numpy as np
-from matplotlib import pyplot as plt
-from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
-from skimage.transform import resize
 
 from .base_env import BaseEnv
 
+quota_laitue = 3
+quota_carotte = 2
+quota_broccoli = 0
+quota_tomate = 1
+quota_chou = 1
+quota_haricot = 0
+quota_patate = 4
+quota_ail = 3
+quota_oignon = 0
+quota_courgette = 1
 
-class AlignedRowEnv(BaseEnv):
+
+ensemble_des_tuiles = dict()
+
+ensemble_des_tuiles[1] = ['tomate',4,3,quota_tomate]
+ensemble_des_tuiles[2] = ['carotte',2,5,quota_carotte]
+ensemble_des_tuiles[3] = ['broccoli',6,1,quota_broccoli]
+ensemble_des_tuiles[4] = ['chou',3,3,quota_chou]
+ensemble_des_tuiles[5] = ['laitue',2,1,quota_laitue]
+ensemble_des_tuiles[6] = ['haricot',6,2,quota_haricot]
+ensemble_des_tuiles[7] = ['patate',2,4,quota_patate]
+ensemble_des_tuiles[8] = ['ail',8,1,quota_ail]
+ensemble_des_tuiles[9] = ['oignon',8,1,quota_oignon]
+ensemble_des_tuiles[10] = ['courgette',1,2,quota_courgette]
+
+nb_ensemble_des_tuiles = len(ensemble_des_tuiles)
+print(nb_ensemble_des_tuiles)
+ensemble_des_tuiles
+
+ensemble_des_rewards = []
+ensemble_des_quotas = []
+
+for k,v in ensemble_des_tuiles.items():
+    ensemble_des_rewards.append(v[2])
+
+for k,v in ensemble_des_tuiles.items():
+    ensemble_des_quotas.append(v[-1])
+
+ensemble_des_rewards, ensemble_des_quotas
+
+
+nb_tuiles = nb_ensemble_des_tuiles
+dim_x = 25
+dim_y = 1
+ensemble_des_possibles = dict()
+
+compteur = -1
+for x,y,t in itertools.product(range(dim_x),range(dim_y),range(1, nb_tuiles+1)):
+    compteur += 1
+    ensemble_des_possibles[compteur] = [x,y,t]
+
+nb_ensemble_des_possibles = len(ensemble_des_possibles)
+print(nb_ensemble_des_possibles)
+ensemble_des_possibles
+
+
+class QuotaEnv(BaseEnv):
     def __init__(self,dimension,
                  observation_1D=True,
                  action_float=False,
@@ -64,7 +114,7 @@ class AlignedRowEnv(BaseEnv):
         if not self.observation_1D:
             return self._state.reshape((int(self.dimension**0.5),int(self.dimension**0.5))).copy()
         else:
-            return self._state.copy()
+            self._state.copy()
 
     def _step(self, action):
         """
@@ -101,21 +151,8 @@ class AlignedRowEnv(BaseEnv):
         if not self._episode_ended:
             result = ts.transition(
                 self.to_observation(), reward=reward, discount=1)
+
         else:
             result = ts.termination(self.to_observation(), reward)
         return result
 
-    def render(self):
-        grill = self._state.reshape((int(self.dimension**0.5),int(self.dimension**0.5)))
-        img = np.full((grill.shape[0]*16,grill.shape[1]*256),255)
-        for r,c in itertools.product(range(grill.shape[0]),range(grill.shape[1])):
-            img[r*16:r*16+16,c*16:c*16+16] = 255-grill[r,c]*255
-
-        # print(img)
-        # img = img * 255
-        # print(img)
-        # print(img.astype("uint8"),"in")
-        # img = resize(img, (img.shape[0]*16,img.shape[1]*16)).astype("uint8")
-        # print(img,"res")
-
-        return img.astype('uint8')

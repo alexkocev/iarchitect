@@ -127,17 +127,26 @@ class Trainer:
             callbacks = []):
 
         # assert bool(num_episodes_collect_driver is None) ^ bool(num_steps_collect_driver is None) , "Choisir entre collect data by episodes num_steps_collect_driver=None) ou by steps (num_episodes_collect_driver = None)"
-
+        abort = False
         for i in range(maximum_iterations):
-            for _ in range(buffer_size_increase_per_iteration):
-                self.collect_step()
-            new_losses = self.train_agent(
-                sample_batch_size=sample_batch_size_experience,
-                num_iterations = num_iterations_train,
-                num_steps=num_steps_per_row_in_experience)
-            self.losses = np.append(self.losses,
-                                    new_losses)
-            self.metrics = np.append(self.metrics,
-                                     [self.evaluate_agent(num_episodes_driver=num_episodes_evaluate_driver)]*len(new_losses))
-            for callback in callbacks:
-                callback(i,self)
+            try:
+                for _ in range(buffer_size_increase_per_iteration):
+                    self.collect_step()
+                new_losses = self.train_agent(
+                    sample_batch_size=sample_batch_size_experience,
+                    num_iterations = num_iterations_train,
+                    num_steps=num_steps_per_row_in_experience)
+                self.losses = np.append(self.losses,
+                                        new_losses)
+                self.metrics = np.append(self.metrics,
+                                         [self.evaluate_agent(num_episodes_driver=num_episodes_evaluate_driver)]*len(new_losses))
+            except KeyboardInterrupt:
+                abort = True
+            finally:
+                for callback in callbacks:
+                    try:
+                        callback(i,self)
+                    except KeyboardInterrupt:
+                        pass
+            if abort:
+                break
