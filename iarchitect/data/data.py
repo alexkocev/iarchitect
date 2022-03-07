@@ -3,7 +3,7 @@ import pandas as pd
 
 def get_data():
     """Method to get the tuile from csv files"""
-    path = '../iarchitect/data/'
+    path = ''
 
     # Import description csv as df_tuile
     csv_tuile = 'Tableau des caractéristiques - Caractéristiques'
