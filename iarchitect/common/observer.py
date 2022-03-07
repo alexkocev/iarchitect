@@ -1,3 +1,5 @@
+from operator import attrgetter, itemgetter
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -9,14 +11,21 @@ class ObserverTrajectory:
         self.verbose = verbose
 
     def __call__(self,traj):
-        obs = traj.observation
-        if isinstance(obs,Tensor):
-            obs = obs.numpy().copy()
-        else:
-            obs = obs.copy()
-        self.results.append({"observation":obs,"reward":traj.reward,"traj":traj})
+        self.results.append(traj)
         if self.verbose:
             print("\tMyObserver:",traj.observation,traj.reward)
+
+    def trajectories(self):
+        return self.results
+
+    def commonattr(self,attr):
+        return list(map(attrgetter(attr),self.trajectories()))
+
+    def rewards(self):
+        return self.commonattr("reward")
+
+    def observations(self):
+        return self.commonattr("observation")
 
     def plot_reward(self, ax=None, slice_=slice(None,None,None)):
         n = len(self.results)
@@ -24,7 +33,7 @@ class ObserverTrajectory:
         if ax is None:
             fig,ax = plt.subplots()
         results = self.results[slice_]
-        ax.plot([t.get("reward") for t in results])
+        ax.plot([t.reward.numpy() for t in results])
         return ax
 
     def plot_action(self, ax=None, slice_=slice(None,None,None)):
@@ -34,7 +43,7 @@ class ObserverTrajectory:
             fig,ax = plt.subplots()
         results = self.results[slice_]
 
-        toplot = np.array([t.get("traj").action.numpy() for t in results])
+        toplot = np.array([t.action.numpy() for t in results])
         for c in range(toplot.shape[1]):
             ax.plot(toplot[:,c])
         return ax
