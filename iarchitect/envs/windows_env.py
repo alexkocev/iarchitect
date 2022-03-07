@@ -7,13 +7,17 @@ from tf_agents.trajectories import time_step as ts
 from iarchitect.envs.base_env import BaseEnv
 
 
+
 class WindowEnv(BaseEnv):
-    def __init__(self,dimension,tuiles,quotas):
+    def __init__(self,dimension,tuiles,quotas,nemesis):     # <---- ak UPDATE
         super().__init__()
         assert quotas.shape[0]==tuiles.shape[0]
+        assert nemesis.shape[0]==len(tuiles)                # <---- ak UPDATE
+        assert nemesis.shape[0]==nemesis.shape[1]           # <---- ak UPDATE
         self.dimension = dimension
         self.tuiles = tuiles
         self.quotas = quotas
+        self.nemesis = nemesis                              # <---- ak UPDATE
         # self.quotas[self.quotas==0]=1e-6
 
         self._state = np.zeros((self.dimension,),dtype=np.int8)
@@ -81,6 +85,53 @@ class WindowEnv(BaseEnv):
     def to_observation(self):
         return self._taux.copy()
 
+    def neighbours(self):         # <-------------------------ak UPDATE
+        # Convert coordinate of _next_position from 1D to 2D grid
+        xy = self._next_position[-1] % self.dimension
+        x = int(xy // self.dimension**0.5)
+        y = int(xy % self.dimension**0.5)
+
+        # Reshape the _state as a 2D grid to determine closest neighbours
+        state_reshaped = self._state.reshape(int(self.dimension**0.5), -1)
+
+        neighbours = []
+
+        # north
+        if y-1 >0:
+            neighbours.append(state_reshaped[y-1, x])
+
+        # north_east
+        if x+1 >0 and y-1 >0:
+            neighbours.append(state_reshaped[y-1, x+1])
+
+        # east
+        if x+1 >0:
+            neighbours.append(state_reshaped[y, x+1])
+
+        # south_east
+        if x+1 >0 and y+1 >0:
+            neighbours.append(state_reshaped[y+1, x+1])
+
+        # south
+        if y+1 >0:
+            neighbours.append(state_reshaped[y+1, x])
+
+        # south_west
+        if x-1 >0 and y+1 >0:
+            neighbours.append(state_reshaped[y+1, x-1])
+
+        # west
+        if x-1 >0:
+            neighbours.append(state_reshaped[y, x-1])
+
+        # north_west
+        if x-1 >0 and y-1 >0:
+            neighbours.append(state_reshaped[y-1, x-1])
+
+        return neighbours
+        ################################################
+
+
     def _step(self, action):
         """
         Remplit la action_ième case
@@ -102,6 +153,15 @@ class WindowEnv(BaseEnv):
         new_taux = self.taux_remplissage() # NOUVEAU TAUX, LES ANCIENS SONT ENCORE DANS self._taux
         self._next_position = self.next_position()
 
+        ###############################################################
+        # Check for nemesis in the neighbourhood
+        neighbours = self.neighbours()
+        if neighbours
+        for neighbour in neighbours:
+            if neighbour in self.nemesis[action,:]:
+                reward = 0,5       # Penalty of -0.5 if at least one nemesis
+                break
+        ###############################################################
 
         if self._taux[espece_vue]<1.0 and self.quotas[action]>0.0:
             # ON AUGMENTE UN QUOTA A REMPLIR
@@ -121,7 +181,9 @@ class WindowEnv(BaseEnv):
                 self.to_observation(), reward=reward, discount=1)
         else:
             result = ts.termination(self.to_observation(), reward)
-        return result
+        #return result
+        return self._next_position, self._state, espece_vue, action    #<----- ak BECAREFUL
+
 
     def render(self):
         grill = self._state.reshape((int(self.dimension**0.5),int(self.dimension**0.5)))
