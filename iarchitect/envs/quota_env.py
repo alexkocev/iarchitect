@@ -61,7 +61,7 @@ ensemble_des_possibles
 
 
 class QuotaEnv(BaseEnv):
-    def __init__(self,dimension,
+    def __init__(self,dimension,species,quotas,
                  observation_1D=True,
                  action_float=False,
                  fail_on_same=True,
@@ -70,7 +70,7 @@ class QuotaEnv(BaseEnv):
                      "already_filled":-10,
                      "max_iter":-10,
                      "new_value":1,
-                     "success":10
+                     "success":10,
                  }):
         super().__init__()
         self.dimension = dimension
@@ -95,6 +95,8 @@ class QuotaEnv(BaseEnv):
         self._episode_ended = False
         self.fail_on_same = fail_on_same
         self.rewards=rewards
+        self.quotas = quotas
+        self.species = species
 
 
     def action_spec(self):

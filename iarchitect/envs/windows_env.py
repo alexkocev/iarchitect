@@ -30,6 +30,7 @@ class WindowEnv(BaseEnv):
         self._next_position = self.next_position()
         self._taux = self.taux_remplissage()
 
+
     def next_position(self):
         """
         Determine la prochaine position vide
@@ -45,7 +46,7 @@ class WindowEnv(BaseEnv):
         Retourne une nouvelle grille avec au moins une position non vide
         :return:
         """
-        self._state = np.random.randint(1,len(self.tuiles)+1,(self.dimension,),np.int8)
+        self._state = np.random.randint(1,len(self.tuiles)+1,(self.dimension,),np.int)
 
         nb_zeros = np.random.randint(0,self.dimension)
         zero_indices = np.random.randint(0,self.dimension,(nb_zeros,))
@@ -71,7 +72,7 @@ class WindowEnv(BaseEnv):
         mask = self.quotas!=0.0 # Pour les quotas imposés, ie différent de zeros
         mask_tx= np.insert(mask,0,False) # Taux a une case de plus que quota. On ajout False à la fin
         taux[mask_tx] = taux[mask_tx]/self.quotas[mask]
-        taux[~(mask_tx)] = 0.0
+        taux[~(mask_tx)] = 1.0
         # TODO MULTIPLIER PAR LES RENDEMENTS
         # TODO CONFIRMER QUE QUOTOS
         return taux
@@ -92,13 +93,12 @@ class WindowEnv(BaseEnv):
 
         # ACTION ENTRE 0 et N_Tuile-1
         # DANS LE STATE LES ESPECES SONT REPERERES PAR i_TUILE + 1 car 0 Pour case vides
-
         espece_vue = action + 1
 
         self._episode_ended = False
         reward = 0
 
-        self._state[self._next_position] = action # POSE DU LEGUME
+        self._state[self._next_position] = espece_vue # POSE DU LEGUME
         new_taux = self.taux_remplissage() # NOUVEAU TAUX, LES ANCIENS SONT ENCORE DANS self._taux
         self._next_position = self.next_position()
 

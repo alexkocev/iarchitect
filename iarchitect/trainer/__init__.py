@@ -108,6 +108,7 @@ class Trainer:
         losses = []
         for _ in range(num_iterations):
             experience, __ = next(iterator)
+            # print(_,__,experience,"------------------------------------------")
             new_losses = self.agent.train(experience=experience)
             losses.append(self._loss_getter(new_losses))
         return losses
