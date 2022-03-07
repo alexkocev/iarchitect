@@ -21,7 +21,7 @@ def output_updater(*args,clear_output=True):
     return update
 
 
-def update_plotter(fig,plot_obs,slice_=slice(-50,None,None)):
+def update_plotter(fig,plot_obs=None,plot_traj=None,slice_=slice(-50,None,None)):
     """
 
     :param fig: figure dont les 3 premiers axes permettent de tracer, avg metrics, losses et dernières reward/action
@@ -49,9 +49,14 @@ def update_plotter(fig,plot_obs,slice_=slice(-50,None,None)):
 
         trainer.observer.plot_reward(ax=ax3,slice_=slice_)
         trainer.observer.plot_action(ax=ax3,slice_=slice_)
-        obs = trainer.observer.observations()[-len(axes):]
-        for o,ax_ in zip(obs,axes):
-            plot_obs(o,ax_)
+        if plot_obs is not None:
+            obs = trainer.observer.observations()[-len(axes):]
+            for o,ax_ in zip(obs,axes):
+                plot_obs(o,ax_)
+        if plot_traj is not None:
+            trajs = trainer.observer.trajectories()[-len(axes):]
+            for tr,ax_ in zip(trajs,axes):
+                plot_traj(tr,ax_)
         ax.legend()
         ax2.legend()
     return update_plot
