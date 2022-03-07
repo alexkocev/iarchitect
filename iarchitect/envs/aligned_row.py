@@ -46,13 +46,6 @@ class AlignedRowEnv(BaseEnv):
         self.fail_on_same = fail_on_same
         self.rewards=rewards
 
-
-    def action_spec(self):
-        return self._action_spec
-
-    def observation_spec(self):
-        return self._observation_spec
-
     def _reset(self):
         self._state = np.zeros((self.dimension,),dtype=np.int32)
         self._iter = 0
