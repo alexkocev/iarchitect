@@ -1,8 +1,11 @@
+import imp
 import numpy as np
+import itertools
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
 from .base_env import BaseEnv
+
 
 quota_laitue = 3
 quota_carotte = 2
@@ -30,8 +33,7 @@ ensemble_des_tuiles[9] = ['oignon',8,1,quota_oignon]
 ensemble_des_tuiles[10] = ['courgette',1,2,quota_courgette]
 
 nb_ensemble_des_tuiles = len(ensemble_des_tuiles)
-print(nb_ensemble_des_tuiles)
-ensemble_des_tuiles
+
 
 ensemble_des_rewards = []
 ensemble_des_quotas = []
@@ -41,8 +43,6 @@ for k,v in ensemble_des_tuiles.items():
 
 for k,v in ensemble_des_tuiles.items():
     ensemble_des_quotas.append(v[-1])
-
-ensemble_des_rewards, ensemble_des_quotas
 
 
 nb_tuiles = nb_ensemble_des_tuiles
@@ -155,4 +155,3 @@ class QuotaEnv(BaseEnv):
         else:
             result = ts.termination(self.to_observation(), reward)
         return result
-
