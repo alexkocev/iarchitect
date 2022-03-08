@@ -17,7 +17,7 @@ class WindowEnv(BaseEnv):
         self.dimension = dimension
         self.tuiles = tuiles
         self.quotas = quotas
-        self.nemesis = nemesis                              # <---- ak UPDATE
+        self.nemesis = nemesis +1     # to match with action and new_taux shape    # <---- ak UPDATE
         # self.quotas[self.quotas==0]=1e-6
 
         self._state = np.zeros((self.dimension,),dtype=np.int8)
@@ -156,7 +156,7 @@ class WindowEnv(BaseEnv):
         ###############################################################
         # Check for nemesis in the neighbourhood
         neighbours = self.neighbours()
-        if neighbours
+
         for neighbour in neighbours:
             if neighbour in self.nemesis[action,:]:
                 reward = 0,5       # Penalty of -0.5 if at least one nemesis
@@ -182,7 +182,7 @@ class WindowEnv(BaseEnv):
         else:
             result = ts.termination(self.to_observation(), reward)
         #return result
-        return self._next_position, self._state, espece_vue, action    #<----- ak BECAREFUL
+        return self._next_position, self._state, espece_vue, action, neighbours, new_taux    #<----- ak BECAREFUL
 
 
     def render(self):
