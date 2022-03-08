@@ -55,10 +55,16 @@ class WindowEnv(BaseEnv):
                     shape=(), dtype=np.int, minimum=0, maximum=len(self.tuiles)-1, name='action')
 
         # ETAPE 1 : OBSERVATION = REMPLISSAGE (ON RAJOUTE UNE CASE POUR LES CASES VIDES)
-        self._observation_spec = array_spec.BoundedArraySpec(
-                shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=0, name='observation')
+        if self.strategie!=5:
+            self._observation_spec = array_spec.BoundedArraySpec(
+                        shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=0, name='observation')
+        else:
+            # Normalisation des observations
+            self._observation_spec = array_spec.BoundedArraySpec(
+                shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=-1,maximum=1, name='observation')
 
-        self._episode_ended = False
+
+            self._episode_ended = False
         self._next_position = None
         self._last_value = 0
 
@@ -111,7 +117,7 @@ class WindowEnv(BaseEnv):
             # LOI NORMALE POUR DEFINIR LES QUOTAS
             self.set_quotas(np.abs(
                 (np.random.normal(0,
-                                  0.1,
+                                  0.07,
                                   size=(len(self.tuiles),))*self.dimension).astype(int)))
 
         self._taux = self.taux_remplissage()
@@ -132,8 +138,20 @@ class WindowEnv(BaseEnv):
         taux[ind] = c  # Ind sont bien compris entre 1 et n_tuiles, car lues dans state
          # Pour les quotas imposés, ie différent de zeros
         taux[self.taux_mask_quotas] = taux[self.taux_mask_quotas]/self.quotas[self.quotas_demandes_mask]
-        taux[taux>1.0] = 1.0
-        taux[~(self.taux_mask_quotas)] = 1.0
+
+
+        if self.strategie==5:
+            # Normalisation des observations
+            taux[~(self.taux_mask_quotas)] = taux[~(self.taux_mask_quotas)]/0.1
+            taux[taux==0] = 1e-6
+            infone = np.tanh(-(np.power(taux[taux<1],-1)-1))
+            supone = np.tanh(taux[taux>=1]-1)
+            taux = np.append(infone,supone)
+            # TODO QUE FAIRE DE TAUX[0]
+        else:
+            taux[taux>1.0] = 1.0
+            taux[~(self.taux_mask_quotas)] = 1.0
+
         # TODO MULTIPLIER PAR LES RENDEMENTS
         # TODO CONFIRMER QUE QUOTOS
         return taux
@@ -226,6 +244,18 @@ class WindowEnv(BaseEnv):
             reward = -0.1
             if self._next_position is None:
                 reward = self.evaluate_grid()
+                self._episode_ended = True
+        elif self.strategie == 5:
+            ### Normalisation des observations
+            reward = 0.1
+            oldtx = self._taux[espece_vue]
+            if oldtx<0:
+                reward = reward
+            else:
+                reward = -reward-oldtx
+
+            if self._next_position is None:
+                reward = 1
                 self._episode_ended = True
         else:
             raise Exception

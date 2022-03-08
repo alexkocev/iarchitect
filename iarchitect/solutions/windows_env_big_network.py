@@ -19,6 +19,9 @@ from tensorflow.keras import layers
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import initializers
 
+from iarchitect.solutions.common import ValidEnv, write_args
+
+
 def make_environment(args):
     env = envs.WindowEnv(args.dimension,
                      np.fromiter(range(10),dtype=int),
@@ -41,12 +44,15 @@ if __name__ == '__main__':
     parser.add_argument("--discount",default=1,type=float)
     parser.add_argument("--greedy_epsilon",default=0.1,type=float)
     parser.add_argument("--suff",default=None)
+    parser.add_argument("--maximum_iterations",default=1000,type=int)
+    parser.add_argument("--num_iterations_train",default=10,type=int)
+    parser.add_argument("--sample_batch_size_experience",default=64,type=int)
 
 
     args = parser.parse_args(sys.argv[1:])
     args.random_reset = bool(int(args.random_reset))
     args.max_species_reset = args.max_species_reset if args.max_species_reset is None else int(args.max_species_reset)
-
+    setattr(args,"name_env",ValidEnv.windows_env_big_network)
     print(args)
     assert args.dimension == int(args.dimension**0.5)**2
 
@@ -56,8 +62,7 @@ if __name__ == '__main__':
 
     p = Path(SOLUTION_NAME)
     p.mkdir(exist_ok=False)
-    with open(p / "args.json","w") as f:
-        json.dump(dict(args._get_kwargs()),f)
+    write_args(p,args)
 
     environment,train_env = make_environment(args)
 
@@ -68,6 +73,7 @@ if __name__ == '__main__':
             activation="relu",
             kernel_initializer=initializers.VarianceScaling(
                 scale=2.0, mode='fan_in', distribution='truncated_normal'))
+
     def network(fc_layers_units,dimension_q_values):
         q_values_layer = layers.Dense(
             dimension_q_values,
@@ -109,8 +115,9 @@ if __name__ == '__main__':
 
     trainer.run(callbacks=callbacks,
                 buffer_size_increase_per_iteration = 10,
-                sample_batch_size_experience = 64,
-                num_iterations_train = 10,
-                num_steps_per_row_in_experience = 2
+                sample_batch_size_experience = args.sample_batch_size_experience,
+                num_steps_per_row_in_experience = 2,
+                maximum_iterations=args.maximum_iterations,
+                num_iterations_train = args.num_iterations_train
                 )
 
