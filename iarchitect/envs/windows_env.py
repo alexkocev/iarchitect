@@ -26,6 +26,7 @@ class WindowEnv(BaseEnv):
         self.quotas_resetable = True
         if render_dims is not None:
             assert render_dims[0]*render_dims[1]==dimension
+            self.render_dims = map(int,self.render_dims)
 
         self.tuiles = tuiles
 
@@ -163,7 +164,14 @@ class WindowEnv(BaseEnv):
 
 
     def to_observation(self):
-        return self._taux.copy()
+        ret = self._taux.copy()
+        if self.strategie!=3:
+            return ret
+        else:
+            # TODO Essayer
+            # # On retourne au programme dans le cas de la stratégie 3 le nombre de case restante
+            # ret[0] = (self._state == 0).sum()
+            return ret
 
     def _step(self, action):
         """
@@ -215,6 +223,11 @@ class WindowEnv(BaseEnv):
 
             if self._next_position is None:
                 reward = 0.5
+                self._episode_ended = True
+        elif self.strategie == 3:
+            reward = -0.1
+            if self._next_position is None:
+                reward = self.evaluate_grid()
                 self._episode_ended = True
         else:
             raise Exception
