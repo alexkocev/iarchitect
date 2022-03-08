@@ -1,5 +1,3 @@
-import itertools
-
 import numpy as np
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
@@ -26,7 +24,7 @@ class WindowEnv(BaseEnv):
         self.quotas_resetable = True
         if render_dims is not None:
             assert render_dims[0]*render_dims[1]==dimension
-            self.render_dims = map(int,self.render_dims)
+            self.render_dims = tuple(map(int,self.render_dims))
 
         self.tuiles = tuiles
 
