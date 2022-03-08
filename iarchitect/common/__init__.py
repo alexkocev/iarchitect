@@ -37,12 +37,12 @@ def create_policy_eval_video(tf_env,py_env,policy, filename, num_episodes=5, fps
     with imageio.get_writer(filename, fps=fps) as video:
         for _ in range(num_episodes):
             time_step = tf_env.reset()
-            img = py_env.render()
+            img = py_env.render(mode="rgb_array")
             video.append_data(img)
             while not time_step.is_last():
                 action_step = policy.action(time_step)
                 time_step = tf_env.step(action_step.action)
-                img = py_env.render()
+                img = py_env.render(mode="rgb_array")
                 video.append_data(img)
     return embed_mp4(filename)
 
