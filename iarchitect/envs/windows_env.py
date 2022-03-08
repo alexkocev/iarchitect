@@ -26,6 +26,7 @@ class WindowEnv(BaseEnv):
         self.quotas_resetable = True
         if render_dims is not None:
             assert render_dims[0]*render_dims[1]==dimension
+            self.render_dims = map(int,self.render_dims)
 
         self.tuiles = tuiles
 
