@@ -32,9 +32,7 @@ def make_environment(args):
 
 if __name__ == '__main__':
 
-
     SOLUTION_NAME = "Aligned_Row_Big"
-
 
     # ENVIRONNEMENT
     environment,train_env = make_environment({})
@@ -46,6 +44,7 @@ if __name__ == '__main__':
             activation="relu",
             kernel_initializer=initializers.VarianceScaling(
                 scale=2.0, mode='fan_in', distribution='truncated_normal'))
+
     def network(fc_layers_units,dimension_q_values):
         q_values_layer = layers.Dense(
             dimension_q_values,

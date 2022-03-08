@@ -79,7 +79,6 @@ class WindowEnv(BaseEnv):
         self.next_position()
 
 
-
     def next_position(self):
         """
         Determine la prochaine position vide
@@ -139,14 +138,14 @@ class WindowEnv(BaseEnv):
          # Pour les quotas imposés, ie différent de zeros
         taux[self.taux_mask_quotas] = taux[self.taux_mask_quotas]/self.quotas[self.quotas_demandes_mask]
 
-
         if self.strategie==5:
             # Normalisation des observations
             taux[~(self.taux_mask_quotas)] = taux[~(self.taux_mask_quotas)]/0.1
+            taux[~(self.taux_mask_quotas) & (taux==0)] = 1+1e-6
             taux[taux==0] = 1e-6
-            infone = np.tanh(-(np.power(taux[taux<1],-1)-1))
-            supone = np.tanh(taux[taux>=1]-1)
-            taux = np.append(infone,supone)
+            mask = taux<1
+            taux[mask] = np.tanh(-(np.power(taux[mask],-1)-1))
+            taux[~(mask)] = np.tanh(taux[~(mask)]-1)
             # TODO QUE FAIRE DE TAUX[0]
         else:
             taux[taux>1.0] = 1.0
@@ -165,8 +164,10 @@ class WindowEnv(BaseEnv):
 
         value = 0
         # quotas demandés
-        mask_quota_nok = compteurs[self.quotas_demandes_mask]<self.quotas[self.quotas_demandes_mask]
-        mask_quota_ok = compteurs[self.quotas_demandes_mask]>=self.quotas[self.quotas_demandes_mask]
+        mask_quota_nok = \
+            compteurs[self.quotas_demandes_mask]<self.quotas[self.quotas_demandes_mask]
+        mask_quota_ok = \
+            compteurs[self.quotas_demandes_mask]>=self.quotas[self.quotas_demandes_mask]
         if mask_quota_nok.any():
             # DES QUOTAS SONT ENCORE VIDES => ON NE COMPTE QUE LES QUOTAS OK + LES QUOTAS NOK EN COURS
             value += self.quotas[self.quotas_demandes_mask][mask_quota_ok].sum()
@@ -276,10 +277,19 @@ class WindowEnv(BaseEnv):
 
 
     def render_strings(self):
+        compteurs = np.full((len(self.tuiles),),0.0,dtype=np.float32)
+        ind,c = np.unique(self._state,return_counts=True) # SHIFT DE -1 pour retrouver des indices qui commencent par 0 et supprimer les cases vides
+        c = c[ind!=0]
+        ind = ind[ind!=0]-1
+        compteurs[ind]=c
+        taux = compteurs
+        taux[self.quotas_demandes_mask] = taux[self.quotas_demandes_mask] / self.quotas[self.quotas_demandes_mask]
+        taux[~(self.quotas_demandes_mask)] = taux[~(self.quotas_demandes_mask)] / 0.1
+
         r,c = self.render_dims
         grid = [" ".join(self.emojis[self._state.reshape((r,c))[i,:]].flat) for i in range(r)]
         q = [f"{self.emojis[i+1]} : {q}" for i,q in enumerate(self.quotas)]
-        tx = [f"{self.emojis[i+1]} : {t*100:3.0f}%" for i,t in enumerate(self.taux_remplissage()[1:])]
+        tx = [f"{self.emojis[i+1]} : {t*100:3.0f}%" for i,t in enumerate(taux)]
         la = self.emojis[self._last_action+1] if self._last_action is not None else ""
         at = f"@ {','.join(map(str,np.unravel_index(self._last_position, (r, c))))}" if self._last_position is not None else ""
 

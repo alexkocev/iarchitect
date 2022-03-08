@@ -1,1 +1,1 @@
-{"name_env": "windows_env_big_network","strategie": 5,"discount": 0.2, "dimension":  16, "reset_random": true, "max_species_reset": 1}
+{"name_env": "windows_env_big_network","strategie": 5,"discount": 0.2, "dimension":  16, "random_reset": true, "max_species_reset": 1}
