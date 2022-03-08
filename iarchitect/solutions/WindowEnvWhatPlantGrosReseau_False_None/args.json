@@ -1,0 +1,1 @@
+{"name_env": "windows_env_big_network","dimension": 16, "discount": 1, "greedy_epsilon": 0.8, "max_species_reset": null, "random_reset": false, "strategie": 2, "suff": "epsilon_greedy"}

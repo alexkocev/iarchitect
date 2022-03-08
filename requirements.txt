@@ -33,3 +33,4 @@ termcolor
 imageio
 imageio-ffmpeg
 scikit-image
+pilmoji

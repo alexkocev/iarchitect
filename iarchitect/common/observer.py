@@ -1,7 +1,10 @@
+import pickle
 from operator import attrgetter, itemgetter
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from tensorflow import Tensor
 
@@ -47,3 +50,20 @@ class ObserverTrajectory:
         for c in range(toplot.shape[1]):
             ax.plot(toplot[:,c])
         return ax
+
+    def save(self,folder,suff):
+        p = Path(folder)
+        p.mkdir(exist_ok=True)
+        p = p / ("observer_"+suff)
+        with open(p,"wb") as f:
+            pickle.dump(self.results,f)
+
+    @classmethod
+    def load(cls,folder,suff):
+        obs = cls()
+        p = Path(folder)
+        p = p / ("observer_"+suff)
+        with open(p,"rb") as f:
+            obs.results = pickle.load(f)
+        return obs
+

@@ -84,3 +84,18 @@ class AlignedRowEnv(BaseEnv):
         else:
             result = ts.termination(self.to_observation(), reward)
         return result
+
+    def render(self,mode="human"):
+        grill = self._state.reshape((int(self.dimension**0.5),int(self.dimension**0.5)))
+        img = np.full((grill.shape[0]*16,grill.shape[1]*256),255)
+        for r,c in itertools.product(range(grill.shape[0]),range(grill.shape[1])):
+            img[r*16:r*16+16,c*16:c*16+16] = 255-grill[r,c]*255
+
+        # print(img)
+        # img = img * 255
+        # print(img)
+        # print(img.astype("uint8"),"in")
+        # img = resize(img, (img.shape[0]*16,img.shape[1]*16)).astype("uint8")
+        # print(img,"res")
+
+        return img.astype('uint8')

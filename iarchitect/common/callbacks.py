@@ -1,4 +1,6 @@
+import datetime
 import itertools
+from pathlib import Path
 
 from IPython.core.display import clear_output as clo, display
 from matplotlib import pyplot as plt
@@ -20,6 +22,38 @@ def output_updater(*args,clear_output=True):
             display(a)
     return update
 
+
+def results_saver(each_step,folder,*args):
+    """
+    Pour mise à jour des args
+    :param args: args à mettre à jour dans l'output sous la cellule
+    :param clear_output:
+    :return:
+    """
+    for a in args:
+       assert isinstance(a,Figure) or hasattr(a,"save")
+    p = Path(folder)
+    p.mkdir(exist_ok=True)
+    def update(step,trainer):
+        if step % each_step ==0:
+            suff = datetime.datetime.now().strftime("%y%m%d%H%M%S") + "_" + str(step)
+            for i,a in enumerate(args):
+                if isinstance(a,Figure):
+                    a.savefig(p / f'{i}_{suff}.png')
+                else:
+                    a.save(p / f"{i}_{suff}.txt")
+    return update
+
+
+
+
+def trainer_saver(each_step,folder):
+    def save(step,trainer):
+        if step % each_step ==0:
+            suff = datetime.datetime.now().strftime("%y%m%d%H%M%S") + "_" + str(step)
+            trainer.observer.save(folder,suff)
+            trainer.save_policy(folder,suff)
+    return save
 
 def update_plotter(fig,plot_obs=None,plot_traj=None,slice_=slice(-50,None,None)):
     """
@@ -65,11 +99,15 @@ def update_plotter(fig,plot_obs=None,plot_traj=None,slice_=slice(-50,None,None))
 def fig_trainer(r,c,**kwargs):
     assert r%3==0
     fig = plt.figure(**kwargs)
-    gs = GridSpec(r, c,width_ratios=[1]+[1/(c-1)]*(c-1))
+    if c>1:
+        gs = GridSpec(r, c,width_ratios=[1]+[1/(c-1)]*(c-1))
+    else:
+        gs = GridSpec(r, c)
     ax = fig.add_subplot(gs[0:r//3,0])
     ax2 = fig.add_subplot(gs[r//3:r//3*2,0])
     ax3 = fig.add_subplot(gs[r//3*2:,0])
-    axes =[fig.add_subplot(gs[i,j+1]) for i,j in itertools.product(range(r),range(c-1))]
+    if c>1:
+        axes =[fig.add_subplot(gs[i,j+1]) for i,j in itertools.product(range(r),range(c-1))]
     return fig
 
 #
