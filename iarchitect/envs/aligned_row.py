@@ -137,7 +137,7 @@ class AlignedRowEnv(BaseEnv):
         at = f"@ {','.join(map(str,np.unravel_index(self._last_position, (r, c))))}" \
             if self._last_position is not None else "@ 0,0"
 
-        last = [f"Last : {la} {at}","\t-> R : {self._last_reward}"]
+        last = [f"Last : {la} {at}",f"\t-> R : {self._last_reward}"]
         return grid,last
 
     def render_image(self):
