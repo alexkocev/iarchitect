@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
+from IPython import embed
 
-def get_data():
+
+def get_data(path = ''):
     """Method to get the tuile from csv files"""
-    path = ''
 
     # Import description csv as df_tuile
     csv_tuile = 'Tableau des caractéristiques - Caractéristiques'
@@ -74,6 +75,7 @@ def clean_data(df_tuile, df_nemesis):
     # Return a numpy array
     tuile = df_tuile.to_numpy()
     return tuile
+
 
 if __name__ == '__main__':
     df_tuile, df_nemesis = get_data()

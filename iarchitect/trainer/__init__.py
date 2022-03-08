@@ -1,4 +1,8 @@
+from pathlib import Path
+
 import numpy as np
+from tensorflow.compat.v2 import saved_model
+from tf_agents.policies import policy_saver
 from tf_agents.metrics import py_metrics,tf_metrics
 from tf_agents.drivers import py_driver,dynamic_episode_driver,dynamic_step_driver
 from tf_agents.replay_buffers import tf_uniform_replay_buffer,py_uniform_replay_buffer
@@ -18,6 +22,7 @@ class Trainer:
         """
         self.tf_env = tf_env
         self.agent = agent
+        self.policy_saver = policy_saver.PolicySaver(self.agent.policy)
         self.observer = ObserverTrajectory(verbose=False)
         self.replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
             self.agent.collect_data_spec,
@@ -130,6 +135,7 @@ class Trainer:
         # assert bool(num_episodes_collect_driver is None) ^ bool(num_steps_collect_driver is None) , "Choisir entre collect data by episodes num_steps_collect_driver=None) ou by steps (num_episodes_collect_driver = None)"
         abort = False
         for i in range(maximum_iterations):
+            print(i)
             try:
                 for _ in range(buffer_size_increase_per_iteration):
                     self.collect_step()
@@ -151,3 +157,15 @@ class Trainer:
                         pass
             if abort:
                 break
+
+    def save_policy(self,folder,suff):
+        p = Path(folder) / f"policy{suff}"
+        p.mkdir(exist_ok=True,parents=True)
+        self.policy_saver.save(str(p))
+
+    @staticmethod
+    def load_policy(folder,suff):
+        print(str(Path(folder) / f"policy{suff}"))
+        saved_policy = saved_model.load(str(Path(folder) / f"policy{suff}"))
+        return saved_policy
+
