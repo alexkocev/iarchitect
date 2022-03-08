@@ -9,5 +9,6 @@ raw_data/
 /.idea/*
 *.mp4
 *.png
-/solutions/*/policy*/
-/solutions/*/observer_*
+/iarchitect/solutions/*/policy*/
+/iarchitect/solutions/*/observer_*
+
