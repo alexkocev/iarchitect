@@ -1,0 +1,1 @@
+{"dimension": 16, "discount": 0.2, "greedy_epsilon": 0.1, "max_species_reset": 1, "maximum_iterations": 100000, "name_env": "windows_env_big_network", "num_iterations_train": 10, "random_reset": true, "sample_batch_size_experience": 64, "strategie": 5, "suff": null}

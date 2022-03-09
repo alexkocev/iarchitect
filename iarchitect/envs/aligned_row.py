@@ -8,6 +8,7 @@ from tf_agents.trajectories import time_step as ts
 from skimage.transform import resize
 
 from .base_env import BaseEnv
+from ..render import npemojis, image_from_text
 
 
 class AlignedRowEnv(BaseEnv):
@@ -24,9 +25,11 @@ class AlignedRowEnv(BaseEnv):
                  }):
         super().__init__()
         self.dimension = dimension
+        self.emojis = npemojis(1,with_empy=True)
         self._state = np.zeros((self.dimension,),dtype=np.int32)
         self._iter = 0
         self._max_iter = max_iter
+
         if action_float:
             self._action_spec = array_spec.BoundedArraySpec(
                 shape=(), dtype=np.float32, minimum=-0.49, maximum=self.dimension+0.49, name='action')
@@ -45,11 +48,17 @@ class AlignedRowEnv(BaseEnv):
         self._episode_ended = False
         self.fail_on_same = fail_on_same
         self.rewards=rewards
+        self._last_action = None
+        self._last_reward = 0
+
 
     def _reset(self):
         self._state = np.zeros((self.dimension,),dtype=np.int32)
         self._iter = 0
         self._episode_ended = False
+        self._last_action = None
+        self._last_reward = 0
+        self._last_position = None
         return ts.restart(self.to_observation())
 
 
@@ -96,9 +105,13 @@ class AlignedRowEnv(BaseEnv):
                 self.to_observation(), reward=reward, discount=1)
         else:
             result = ts.termination(self.to_observation(), reward)
+
+        self._last_action = 1
+        self._last_position = action_
+        self._last_reward = reward
         return result
 
-    def render(self):
+    def render(self,mode="human"):
         grill = self._state.reshape((int(self.dimension**0.5),int(self.dimension**0.5)))
         img = np.full((grill.shape[0]*16,grill.shape[1]*256),255)
         for r,c in itertools.product(range(grill.shape[0]),range(grill.shape[1])):
@@ -112,3 +125,33 @@ class AlignedRowEnv(BaseEnv):
         # print(img,"res")
 
         return img.astype('uint8')
+
+
+    def render_strings(self):
+        r = int(self.dimension**0.5)
+        c = r
+        assert r*c == self.dimension
+
+        grid = [" ".join(self.emojis[self._state.reshape((r,c))[i,:]].flat) for i in range(r)]
+        la = self.emojis[self._last_action] if self._last_action is not None else "❌"
+        at = f"@ {','.join(map(str,np.unravel_index(self._last_position, (r, c))))}" \
+            if self._last_position is not None else "@ 0,0"
+
+        last = [f"Last : {la} {at}",f"\t-> R : {self._last_reward}"]
+        return grid,last
+
+    def render_image(self):
+        grid,last = self.render_strings()
+        texts = grid+last
+        fnt_sizes = [40]*len(texts)
+        n = (len(last))
+        fnt_sizes[-n:] = [int(40/3)]*n
+        im = image_from_text(texts,fnt_sizes)
+        return im
+
+    def render(self,mode="human"):
+        if mode=="human":
+            grid,last,quotas ,taux ,totaux = self.render_strings()
+            return "\n".join(grid+last+quotas +taux +totaux)
+        else:
+            return np.array(self.render_image())
