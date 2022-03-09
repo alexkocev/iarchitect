@@ -14,8 +14,10 @@ class WindowEnv(BaseEnv):
                  action_float=False,
                  action_shape_one=False,
                  strategie=1,
-                 discount=1):
+                 discount=1,
+                 random_next_position=False):
         super().__init__()
+        self.random_next_position = random_next_position
         self.strategie = strategie
         self.discount = discount
         self.dimension = dimension
@@ -55,10 +57,16 @@ class WindowEnv(BaseEnv):
                     shape=(), dtype=np.int, minimum=0, maximum=len(self.tuiles)-1, name='action')
 
         # ETAPE 1 : OBSERVATION = REMPLISSAGE (ON RAJOUTE UNE CASE POUR LES CASES VIDES)
-        self._observation_spec = array_spec.BoundedArraySpec(
-                shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=0, name='observation')
+        if self.strategie!=5:
+            self._observation_spec = array_spec.BoundedArraySpec(
+                        shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=0, name='observation')
+        else:
+            # Normalisation des observations
+            self._observation_spec = array_spec.BoundedArraySpec(
+                shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=-1,maximum=1, name='observation')
 
-        self._episode_ended = False
+
+            self._episode_ended = False
         self._next_position = None
         self._last_value = 0
 
@@ -73,15 +81,21 @@ class WindowEnv(BaseEnv):
         self.next_position()
 
 
-
     def next_position(self):
         """
         Determine la prochaine position vide
         :return: None si la grille est full
         """
-        pos = np.unravel_index(np.argmin(self._state),self._state.shape)
-        if self._state[pos]!=0:
-            return None
+        if self.random_next_position:
+            pos = None
+            indices = np.argwhere(self._state==0)
+            np.random.shuffle(indices)
+            if indices.shape[0]:
+                pos = np.unravel_index(indices[0],self._state.shape)
+        else:
+            pos = np.unravel_index(np.argmin(self._state),self._state.shape)
+            if self._state[pos]!=0:
+                return None
         return pos
 
     def _reset(self):
@@ -111,7 +125,7 @@ class WindowEnv(BaseEnv):
             # LOI NORMALE POUR DEFINIR LES QUOTAS
             self.set_quotas(np.abs(
                 (np.random.normal(0,
-                                  0.1,
+                                  0.07,
                                   size=(len(self.tuiles),))*self.dimension).astype(int)))
 
         self._taux = self.taux_remplissage()
@@ -132,8 +146,20 @@ class WindowEnv(BaseEnv):
         taux[ind] = c  # Ind sont bien compris entre 1 et n_tuiles, car lues dans state
          # Pour les quotas imposés, ie différent de zeros
         taux[self.taux_mask_quotas] = taux[self.taux_mask_quotas]/self.quotas[self.quotas_demandes_mask]
-        taux[taux>1.0] = 1.0
-        taux[~(self.taux_mask_quotas)] = 1.0
+
+        if self.strategie==5:
+            # Normalisation des observations
+            taux[~(self.taux_mask_quotas)] = taux[~(self.taux_mask_quotas)]/0.1
+            taux[~(self.taux_mask_quotas) & (taux==0)] = 1+1e-6
+            taux[taux==0] = 1e-6
+            mask = taux<1
+            taux[mask] = np.tanh(-(np.power(taux[mask],-1)-1))
+            taux[~(mask)] = np.tanh(taux[~(mask)]-1)
+            # TODO QUE FAIRE DE TAUX[0]
+        else:
+            taux[taux>1.0] = 1.0
+            taux[~(self.taux_mask_quotas)] = 1.0
+
         # TODO MULTIPLIER PAR LES RENDEMENTS
         # TODO CONFIRMER QUE QUOTOS
         return taux
@@ -147,8 +173,10 @@ class WindowEnv(BaseEnv):
 
         value = 0
         # quotas demandés
-        mask_quota_nok = compteurs[self.quotas_demandes_mask]<self.quotas[self.quotas_demandes_mask]
-        mask_quota_ok = compteurs[self.quotas_demandes_mask]>=self.quotas[self.quotas_demandes_mask]
+        mask_quota_nok = \
+            compteurs[self.quotas_demandes_mask]<self.quotas[self.quotas_demandes_mask]
+        mask_quota_ok = \
+            compteurs[self.quotas_demandes_mask]>=self.quotas[self.quotas_demandes_mask]
         if mask_quota_nok.any():
             # DES QUOTAS SONT ENCORE VIDES => ON NE COMPTE QUE LES QUOTAS OK + LES QUOTAS NOK EN COURS
             value += self.quotas[self.quotas_demandes_mask][mask_quota_ok].sum()
@@ -227,6 +255,18 @@ class WindowEnv(BaseEnv):
             if self._next_position is None:
                 reward = self.evaluate_grid()
                 self._episode_ended = True
+        elif self.strategie == 5:
+            ### Normalisation des observations
+            reward = 0.1
+            oldtx = self._taux[espece_vue]
+            if oldtx<0:
+                reward = reward
+            else:
+                reward = -reward-oldtx
+
+            if self._next_position is None:
+                reward = 1
+                self._episode_ended = True
         else:
             raise Exception
 
@@ -246,14 +286,23 @@ class WindowEnv(BaseEnv):
 
 
     def render_strings(self):
+        compteurs = np.full((len(self.tuiles),),0.0,dtype=np.float32)
+        ind,c = np.unique(self._state,return_counts=True) # SHIFT DE -1 pour retrouver des indices qui commencent par 0 et supprimer les cases vides
+        c = c[ind!=0]
+        ind = ind[ind!=0]-1
+        compteurs[ind]=c
+        taux = compteurs
+        taux[self.quotas_demandes_mask] = taux[self.quotas_demandes_mask] / self.quotas[self.quotas_demandes_mask]
+        taux[~(self.quotas_demandes_mask)] = taux[~(self.quotas_demandes_mask)] / 0.1
+
         r,c = self.render_dims
         grid = [" ".join(self.emojis[self._state.reshape((r,c))[i,:]].flat) for i in range(r)]
         q = [f"{self.emojis[i+1]} : {q}" for i,q in enumerate(self.quotas)]
-        tx = [f"{self.emojis[i+1]} : {t*100:3.0f}%" for i,t in enumerate(self.taux_remplissage()[1:])]
+        tx = [f"{self.emojis[i+1]} : {t*100:3.0f}%" for i,t in enumerate(taux)]
         la = self.emojis[self._last_action+1] if self._last_action is not None else ""
         at = f"@ {','.join(map(str,np.unravel_index(self._last_position, (r, c))))}" if self._last_position is not None else ""
 
-        last = [f"Last : {la} {at} -> R : {self._last_reward}"]
+        last = [f"Last : {la} {at} -> R : {self._last_reward:4.3f}"]
 
         # Groupes quotas par ligne
         pos = 0
@@ -277,7 +326,7 @@ class WindowEnv(BaseEnv):
         fnt_sizes = [40]*len(texts)
         n = (len(last)+len(quotas)+len(taux)+len(totaux))
         fnt_sizes[-n:] = [int(40/3)]*n
-        im = image_from_text(texts,fnt_sizes)
+        im = image_from_text(texts,fnt_sizes,max_size=546)
         return im
 
     def render(self,mode="human"):
