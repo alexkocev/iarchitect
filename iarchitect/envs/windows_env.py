@@ -292,7 +292,7 @@ class WindowEnv(BaseEnv):
 
             for neighbour in neighbours:
                 if neighbour in self.nemesis[action,:]:
-                    reward = 0.5       # Penalty of -0.5 if at least one nemesis
+                    reward = -0.5       # Penalty of -0.5 if at least one nemesis
                     self._episode_ended = True
                     break
 
