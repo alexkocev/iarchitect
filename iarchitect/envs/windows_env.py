@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
@@ -8,6 +10,7 @@ from iarchitect.render import npemojis, image_from_text
 
 class WindowEnv(BaseEnv):
     def __init__(self,dimension,tuiles,
+                 nemesis=None,
                  random_reset=True,
                  max_species_reset=5,
                  render_dims=None,
@@ -18,10 +21,18 @@ class WindowEnv(BaseEnv):
                  random_next_position=False):
         super().__init__()
         self.random_next_position = random_next_position
+        self.nemesis = nemesis
+        if nemesis is not None:
+            assert strategie>100
+            assert nemesis.shape[0]==len(tuiles)                # <---- ak UPDATE
+            assert nemesis.shape[0]==nemesis.shape[1]
+            self.nemesis = nemesis +1
         self.strategie = strategie
         self.discount = discount
+
         self.dimension = dimension
         self.render_dims = render_dims
+
         self.quotas = None
         self.quotas_resetable = True
         if render_dims is not None:
@@ -66,7 +77,7 @@ class WindowEnv(BaseEnv):
                 shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=-1,maximum=1, name='observation')
 
 
-            self._episode_ended = False
+        self._episode_ended = False
         self._next_position = None
         self._last_value = 0
 
@@ -199,6 +210,53 @@ class WindowEnv(BaseEnv):
             # ret[0] = (self._state == 0).sum()
             return ret
 
+    def neighbours(self):         # <-------------------------ak UPDATE
+        # Convert coordinate of _next_position from 1D to 2D grid
+        xy = self._next_position[-1] % self.dimension
+        x = int(xy // self.dimension**0.5)
+        y = int(xy % self.dimension**0.5)
+
+        # Reshape the _state as a 2D grid to determine closest neighbours
+        state_reshaped = self._state.reshape(int(self.dimension**0.5), -1)
+
+        neighbours = []
+
+        # north
+        if y-1 >0:
+            neighbours.append(state_reshaped[y-1, x])
+
+        # north_east
+        if x+1 >0 and y-1 >0:
+            neighbours.append(state_reshaped[y-1, x+1])
+
+        # east
+        if x+1 >0:
+            neighbours.append(state_reshaped[y, x+1])
+
+        # south_east
+        if x+1 >0 and y+1 >0:
+            neighbours.append(state_reshaped[y+1, x+1])
+
+        # south
+        if y+1 >0:
+            neighbours.append(state_reshaped[y+1, x])
+
+        # south_west
+        if x-1 >0 and y+1 >0:
+            neighbours.append(state_reshaped[y+1, x-1])
+
+        # west
+        if x-1 >0:
+            neighbours.append(state_reshaped[y, x-1])
+
+        # north_west
+        if x-1 >0 and y-1 >0:
+            neighbours.append(state_reshaped[y-1, x-1])
+
+        return neighbours
+        ################################################
+
+
     def _step(self, action):
         """
         Remplit la action_ième case
@@ -267,6 +325,14 @@ class WindowEnv(BaseEnv):
             if self._next_position is None:
                 reward = 1
                 self._episode_ended = True
+        elif self.strategie == 101:
+            neighbours = self.neighbours()
+
+            for neighbour in neighbours:
+                if neighbour in self.nemesis[action,:]:
+                    reward = -0.5       # Penalty of -0.5 if at least one nemesis
+                    self._episode_ended = True
+                    break
         else:
             raise Exception
 
