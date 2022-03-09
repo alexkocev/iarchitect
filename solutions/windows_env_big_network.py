@@ -29,6 +29,8 @@ parser.add_argument("--dimension",default=16,type=int)
 parser.add_argument("--discount",default=1,type=float)
 parser.add_argument("--greedy_epsilon",default=0.1,type=float)
 parser.add_argument("--suff",default=None)
+parser.add_argument("--maximum_iterations",default=1000,type=int)
+
 
 
 args = parser.parse_args(sys.argv[1:])
@@ -109,6 +111,6 @@ trainer.run(callbacks=callbacks,
             buffer_size_increase_per_iteration = 10,
             sample_batch_size_experience = 64,
             num_iterations_train = 10,
-            num_steps_per_row_in_experience = 2
+            num_steps_per_row_in_experience = 2,
+            maximum_iterations = args.maximum_iterations
             )
-
