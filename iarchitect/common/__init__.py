@@ -32,18 +32,31 @@ def embed_mp4(filename):
 
 
 
-def create_policy_eval_video(tf_env,py_env,policy, filename, num_episodes=5, fps=30):
+def create_policy_eval_video(tf_env,py_env,policy, filename, num_episodes=5, fps=30,each_n_action=1):
     filename = filename + ".mp4"
     with imageio.get_writer(filename, fps=fps) as video:
+        x,y = None,None
         for _ in range(num_episodes):
             time_step = tf_env.reset()
             img = py_env.render(mode="rgb_array")
             video.append_data(img)
+            if x is None:
+                x,y,_ = img.shape
+            iaction = 0
+            plotted = False
             while not time_step.is_last():
+                plotted = False
                 action_step = policy.action(time_step)
                 time_step = tf_env.step(action_step.action)
+                if iaction % each_n_action ==0:
+                    img = py_env.render(mode="rgb_array")
+                    video.append_data(img[:x,:y,:])
+                    plotted = True
+                iaction += 1
+            if not plotted:
                 img = py_env.render(mode="rgb_array")
-                video.append_data(img)
+                video.append_data(img[:x,:y,:])
+
     return embed_mp4(filename)
 
 

@@ -146,12 +146,12 @@ class AlignedRowEnv(BaseEnv):
         fnt_sizes = [40]*len(texts)
         n = (len(last))
         fnt_sizes[-n:] = [int(40/3)]*n
-        im = image_from_text(texts,fnt_sizes)
+        im = image_from_text(texts,fnt_sizes,max_size=546)
         return im
 
     def render(self,mode="human"):
         if mode=="human":
-            grid,last,quotas ,taux ,totaux = self.render_strings()
-            return "\n".join(grid+last+quotas +taux +totaux)
+            grid,last = self.render_strings()
+            return "\n".join(grid+last)
         else:
             return np.array(self.render_image())

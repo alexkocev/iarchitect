@@ -14,8 +14,10 @@ class WindowEnv(BaseEnv):
                  action_float=False,
                  action_shape_one=False,
                  strategie=1,
-                 discount=1):
+                 discount=1,
+                 random_next_position=False):
         super().__init__()
+        self.random_next_position = random_next_position
         self.strategie = strategie
         self.discount = discount
         self.dimension = dimension
@@ -84,9 +86,16 @@ class WindowEnv(BaseEnv):
         Determine la prochaine position vide
         :return: None si la grille est full
         """
-        pos = np.unravel_index(np.argmin(self._state),self._state.shape)
-        if self._state[pos]!=0:
-            return None
+        if self.random_next_position:
+            pos = None
+            indices = np.argwhere(self._state==0)
+            np.random.shuffle(indices)
+            if indices.shape[0]:
+                pos = np.unravel_index(indices[0],self._state.shape)
+        else:
+            pos = np.unravel_index(np.argmin(self._state),self._state.shape)
+            if self._state[pos]!=0:
+                return None
         return pos
 
     def _reset(self):
@@ -293,7 +302,7 @@ class WindowEnv(BaseEnv):
         la = self.emojis[self._last_action+1] if self._last_action is not None else ""
         at = f"@ {','.join(map(str,np.unravel_index(self._last_position, (r, c))))}" if self._last_position is not None else ""
 
-        last = [f"Last : {la} {at} -> R : {self._last_reward}"]
+        last = [f"Last : {la} {at} -> R : {self._last_reward:4.3f}"]
 
         # Groupes quotas par ligne
         pos = 0
@@ -317,7 +326,7 @@ class WindowEnv(BaseEnv):
         fnt_sizes = [40]*len(texts)
         n = (len(last)+len(quotas)+len(taux)+len(totaux))
         fnt_sizes[-n:] = [int(40/3)]*n
-        im = image_from_text(texts,fnt_sizes)
+        im = image_from_text(texts,fnt_sizes,max_size=546)
         return im
 
     def render(self,mode="human"):

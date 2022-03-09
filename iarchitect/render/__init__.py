@@ -21,7 +21,9 @@ def npemojis(number,with_empy = True):
 
     return np.array(emojis)
 
-def image_from_text(texts,size_fnts, path_font=Path(__file__).parent / "seguiemj" / "seguiemj.ttf"):
+def image_from_text(texts,size_fnts,
+                    path_font=Path(__file__).parent / "seguiemj" / "seguiemj.ttf",
+                    max_size=None):
     x = (int(max([len(l)*s for l,s in zip(texts,size_fnts)])*1)//16)*16
     y =  (int(sum(size_fnts)*1.7)//16)*16
     im = Image.new("RGBA", (x,y), (255, 255, 255, 0))
@@ -32,5 +34,12 @@ def image_from_text(texts,size_fnts, path_font=Path(__file__).parent / "seguiemj
         with Pilmoji(im) as pilmoj:
             pilmoj.text((size_fnt//2,pos), text, font=fnt, fill=(0, 0, 0), embedded_color=True)
         pos += len(text.splitlines())*size_fnt
+    if max_size is not None:
+        if max(im.size)>max_size:
+            ratio = max_size/max(im.size)
+            im = im.resize((int(ratio*im.size[0]),
+                            int(ratio*im.size[1])
+                            ))
+            print(im.size)
     return im
 
