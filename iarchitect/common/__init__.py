@@ -1,9 +1,9 @@
-import base64
 import io
 
-import IPython
-import imageio
 import numpy as np
+from PIL import Image
+
+from iarchitect.render import create_list_video
 
 
 def show_policy_behaviour(environment,policy,max_iter,one_episode_only=True):
@@ -18,46 +18,33 @@ def show_policy_behaviour(environment,policy,max_iter,one_episode_only=True):
     return results
 
 
-def embed_mp4(filename):
-    """Embeds an mp4 file in the notebook."""
-    video = open(filename,'rb').read()
-    b64 = base64.b64encode(video)
-    tag = '''
-  <video width="640" height="480" controls>
-    <source src="data:video/mp4;base64,{0}" type="video/mp4">
-  Your browser does not support the video tag.
-  </video>'''.format(b64.decode())
 
-    return IPython.display.HTML(tag)
-
-
-
-def create_policy_eval_video(tf_env,py_env,policy, filename, num_episodes=5, fps=30,each_n_action=1):
-    filename = filename + ".mp4"
-    with imageio.get_writer(filename, fps=fps) as video:
-        x,y = None,None
-        for _ in range(num_episodes):
-            time_step = tf_env.reset()
-            img = py_env.render(mode="rgb_array")
-            video.append_data(img)
-            if x is None:
-                x,y,_ = img.shape
-            iaction = 0
+def create_policy_eval_video(tf_env,py_env,
+                             policy,
+                             filename,
+                             num_episodes=5,
+                             fps=30,each_n_action=1,
+                             embed=True):
+    images = []
+    for _ in range(num_episodes):
+        time_step = tf_env.reset()
+        img = py_env.render(mode="rgb_array")
+        images.append(Image.fromarray(img))
+        iaction = 0
+        plotted = True
+        while not time_step.is_last():
             plotted = False
-            while not time_step.is_last():
-                plotted = False
-                action_step = policy.action(time_step)
-                time_step = tf_env.step(action_step.action)
-                if iaction % each_n_action ==0:
-                    img = py_env.render(mode="rgb_array")
-                    video.append_data(img[:x,:y,:])
-                    plotted = True
-                iaction += 1
-            if not plotted:
+            action_step = policy.action(time_step)
+            time_step = tf_env.step(action_step.action)
+            if iaction % each_n_action ==0:
                 img = py_env.render(mode="rgb_array")
-                video.append_data(img[:x,:y,:])
-
-    return embed_mp4(filename)
+                images.append(Image.fromarray(img))
+                plotted = True
+            iaction += 1
+        if not plotted:
+            img = py_env.render(mode="rgb_array")
+            images.append(Image.fromarray(img))
+    return create_list_video(images,filename,embed=embed,fps=fps)
 
 
 def fig_to_array(fig):
