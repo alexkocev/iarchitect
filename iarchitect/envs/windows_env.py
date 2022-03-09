@@ -255,6 +255,12 @@ class WindowEnv(BaseEnv):
             if self._next_position is None:
                 reward = self.evaluate_grid()
                 self._episode_ended = True
+        elif self.strategie == 4:
+            reward = 0
+            if self._next_position is None:
+                reward = 1
+                if (new_taux[1:]<1).sum()>0:
+                    reward = -1
         elif self.strategie == 5:
             ### Normalisation des observations
             reward = 0.1
