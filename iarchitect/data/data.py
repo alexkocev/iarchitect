@@ -1,20 +1,23 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from IPython import embed
 
 
-def get_data(path = ''):
+def get_data(path = Path(__file__).parent):
+    print(path)
     """Method to get the tuile from csv files"""
 
     # Import description csv as df_tuile
     csv_tuile = 'Tableau des caractéristiques - Caractéristiques'
-    df_tuile = pd.read_csv(path + csv_tuile + '.csv')
+    df_tuile = pd.read_csv(path / (csv_tuile + '.csv'))
     df_tuile.columns = df_tuile.head(1).values.tolist()[0]
     df_tuile = df_tuile.iloc[1: , :]
 
     # Import nemesis csv as df_nemesis
     csv_nemesis = 'Tableau des compatibilités - Matrice'
-    df_nemesis = pd.read_csv(path + csv_nemesis + '.csv')
+    df_nemesis = pd.read_csv(path / (csv_nemesis + '.csv'))
     df_nemesis.rename(columns={'Unnamed: 0':'Categorie'}, inplace=True)
 
     return df_tuile, df_nemesis

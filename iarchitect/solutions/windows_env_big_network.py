@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import numpy as np
-
+import pandas as pd
 
 from iarchitect import envs,trainer as trainer_iarch
 from iarchitect.common.callbacks import output_updater,update_plotter,fig_trainer,results_saver,trainer_saver
@@ -19,42 +19,63 @@ from tensorflow.keras import layers
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import initializers
 
+from iarchitect.data.data import get_data
 from iarchitect.solutions.common import ValidEnv, write_args
 
+parser = ArgumentParser()
+parser.add_argument("--random_reset",default=1,choices=("0","1"))
+parser.add_argument("--max_species_reset",default=None)
+parser.add_argument("--strategie",default=1,type=int)
+parser.add_argument("--dimension",default=16,type=int)
+parser.add_argument("--discount",default=1,type=float)
+parser.add_argument("--greedy_epsilon",default=0.1,type=float)
+parser.add_argument("--suff",default=None)
+parser.add_argument("--maximum_iterations",default=1000,type=int)
+parser.add_argument("--num_iterations_train",default=10,type=int)
+parser.add_argument("--sample_batch_size_experience",default=64,type=int)
+parser.add_argument("--only_diag_nemesis",default=1,choices=("0","1"))
+parser.add_argument("--random_next_position",default=1,choices=("0","1"))
+parser.add_argument("--fc_layers_units",default="64_64")
+parser.add_argument("--read_nemesis",default=None)
+
+def handled_default_args(args):
+    args.random_reset = bool(int(args.random_reset))
+    args.only_diag_nemesis = bool(int(args.only_diag_nemesis))
+    args.random_next_position = bool(int(args.random_next_position))
+    args.max_species_reset = args.max_species_reset if args.max_species_reset is None else int(args.max_species_reset)
+    setattr(args,"name_env",ValidEnv.windows_env_big_network)
+    print(args)
+    assert args.dimension == int(args.dimension**0.5)**2
 
 def make_environment(args):
+    args2 = parser.parse_args([])
+    handled_default_args(args2)
+    for k,v in dict(args2._get_kwargs()).items():
+        if not hasattr(args,k):
+            setattr(args,k,v)
+
     env = envs.WindowEnv(args.dimension,
                      np.fromiter(range(10),dtype=int),
                      render_dims=(args.dimension**0.5,args.dimension**0.5),
                      random_reset=args.random_reset,
                      max_species_reset = args.max_species_reset,
                      strategie=args.strategie,
-                     discount=args.discount)
+                     discount=args.discount,
+                     only_diag_nemesis=args.only_diag_nemesis,
+                    random_next_position=args.random_next_position)
+    if args.read_nemesis:
+        nemesis = pd.read_csv(args.read_nemesis,index_col=False,header=None).values
+        env.set_nemesis(nemesis,resetable=False)
     utils.validate_py_environment(env, episodes=5)
     tf_env = tf_py_environment.TFPyEnvironment(env)
     return env,tf_env
 
+
+
+
 if __name__ == '__main__':
-
-    parser = ArgumentParser()
-    parser.add_argument("--random_reset",default=1,choices=("0","1"))
-    parser.add_argument("--max_species_reset",default=None)
-    parser.add_argument("--strategie",default=1,type=int)
-    parser.add_argument("--dimension",default=16,type=int)
-    parser.add_argument("--discount",default=1,type=float)
-    parser.add_argument("--greedy_epsilon",default=0.1,type=float)
-    parser.add_argument("--suff",default=None)
-    parser.add_argument("--maximum_iterations",default=1000,type=int)
-    parser.add_argument("--num_iterations_train",default=10,type=int)
-    parser.add_argument("--sample_batch_size_experience",default=64,type=int)
-
-
     args = parser.parse_args(sys.argv[1:])
-    args.random_reset = bool(int(args.random_reset))
-    args.max_species_reset = args.max_species_reset if args.max_species_reset is None else int(args.max_species_reset)
-    setattr(args,"name_env",ValidEnv.windows_env_big_network)
-    print(args)
-    assert args.dimension == int(args.dimension**0.5)**2
+    handled_default_args(args)
 
     SOLUTION_NAME = f"WindowEnvWhatPlantGrosReseau_discount{str(args.discount).replace('.','_')}_dimension{args.dimension}_reset{args.random_reset}_maxspe{args.max_species_reset}_str{args.strategie}"
     if args.suff is not None:
@@ -83,7 +104,7 @@ if __name__ == '__main__':
             bias_initializer=initializers.Constant(-0.2))
         return sequential.Sequential([layers.Flatten()] + [dense_layer(n) for n in fc_layers_units] + [q_values_layer])
 
-
+    fc_layers_units = list(map(int,args.fc_layers_units.split("_")))
     agent = DqnAgent(
         train_env.time_step_spec(),
         train_env.action_spec(),
@@ -96,7 +117,11 @@ if __name__ == '__main__':
 
 
     def plot_obs(obs,ax):
-        return ax.imshow(obs,vmin=0.0,vmax=1.0)
+        if args.strategie in [101,102]:
+            return ax.imshow(((obs[0,:,:]+1)/2),vmin=0.0,vmax=1.0,cmap="coolwarm")
+
+        else:
+            return ax.imshow(obs,vmin=0.0,vmax=1.0)
 
     def plot_traj(tr,ax):
         return ax.imshow(tr)

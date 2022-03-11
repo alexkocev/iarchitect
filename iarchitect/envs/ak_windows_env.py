@@ -133,6 +133,7 @@ class WindowEnv(BaseEnv):
         self._episode_ended = False
         self._last_value = self.evaluate_grid()
         self._last_position = None
+        self._last_neighbours = None
         self._last_reward = 0
         self._last_action = None
         return ts.restart(self.to_observation())

@@ -8,6 +8,23 @@ from iarchitect.envs.base_env import BaseEnv
 from iarchitect.render import npemojis, image_from_text
 
 
+
+def make_nemesis(n,diag_only=False):
+    a = np.zeros((n,n))
+    if not diag_only:
+        for i in range(a.shape[0]):
+            a[i,:] = np.random.normal(0,0.5,(a.shape[1]))
+        a[a<-1]=-1
+        a[a>1]=1
+    for i in range(a.shape[0]):
+        a[i,i] = 1
+    a[np.abs(a)<0.3]=0
+    a[np.abs(a)<0.3]=0
+    for r in range(a.shape[0]):
+        for c in range(r,a.shape[1]):
+            a[r,c] = a[c,r]
+    return a
+
 class WindowEnv(BaseEnv):
     def __init__(self,dimension,tuiles,
                  nemesis=None,
@@ -18,14 +35,18 @@ class WindowEnv(BaseEnv):
                  action_shape_one=False,
                  strategie=1,
                  discount=1,
-                 random_next_position=False):
+                 random_next_position=False,
+                 only_diag_nemesis=True):
         super().__init__()
         self.random_next_position = random_next_position
         self.nemesis = nemesis
+        self.nemesis_resetable = True
+        self.only_diag_nemesis = only_diag_nemesis
         if nemesis is not None:
             assert strategie>100
             assert nemesis.shape[0]==len(tuiles)                # <---- ak UPDATE
             assert nemesis.shape[0]==nemesis.shape[1]
+            self.nemesis_resetable = False
             self.nemesis = nemesis +1
         self.strategie = strategie
         self.discount = discount
@@ -68,18 +89,34 @@ class WindowEnv(BaseEnv):
                     shape=(), dtype=np.int, minimum=0, maximum=len(self.tuiles)-1, name='action')
 
         # ETAPE 1 : OBSERVATION = REMPLISSAGE (ON RAJOUTE UNE CASE POUR LES CASES VIDES)
-        if self.strategie!=5:
-            self._observation_spec = array_spec.BoundedArraySpec(
-                        shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=0, name='observation')
-        else:
+
+        if self.strategie==5:
             # Normalisation des observations
             self._observation_spec = array_spec.BoundedArraySpec(
                 shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=-1,maximum=1, name='observation')
-
+        elif self.strategie == 101:
+            # On retourne un tableau a deux dimensiosn
+            self._observation_spec = array_spec.BoundedArraySpec(
+                shape=(self.tuiles.shape[0]+1,self.tuiles.shape[0]), dtype=np.float32, minimum=-1,maximum=1, name='observation')
+        elif self.strategie==102:
+            # On retourne un tableau a deux dimensiosn
+            self._observation_spec = array_spec.BoundedArraySpec(
+                shape=(self.tuiles.shape[0]+2,self.tuiles.shape[0]), dtype=np.float32, minimum=-1,maximum=1, name='observation')
+        else:
+            self._observation_spec = array_spec.BoundedArraySpec(
+                shape=(self.tuiles.shape[0]+1,), dtype=np.float32, minimum=0, name='observation')
 
         self._episode_ended = False
         self._next_position = None
+        self._next_neighbours = None
         self._last_value = 0
+
+
+    def set_nemesis(self,nemesis,resetable=False):
+        assert nemesis.shape[0]==self.tuiles.shape[0],f"{self.tuiles.shape[0]} attendu, {nemesis.shape[0]} vu"
+        self.nemesis = nemesis
+        self.nemesis_resetable = resetable
+        self.next_position()
 
 
     def set_quotas(self,quotas,resetable=False):
@@ -106,8 +143,9 @@ class WindowEnv(BaseEnv):
         else:
             pos = np.unravel_index(np.argmin(self._state),self._state.shape)
             if self._state[pos]!=0:
-                return None
-        return pos
+                pos = None
+        self._next_position = pos
+        self.next_neighbours()
 
     def _reset(self):
         """
@@ -127,7 +165,7 @@ class WindowEnv(BaseEnv):
         else:
             self._state = np.zeros((self.dimension,),dtype=np.int)
 
-        self._next_position = self.next_position()
+        self.next_position()
         if self._next_position is None:
             # LA GRILLE EST DEJA PLEINE
             return self._reset()
@@ -138,6 +176,11 @@ class WindowEnv(BaseEnv):
                 (np.random.normal(0,
                                   0.07,
                                   size=(len(self.tuiles),))*self.dimension).astype(int)))
+
+        if self.nemesis_resetable:
+            self.set_nemesis(
+                make_nemesis(len(self.tuiles),diag_only=self.only_diag_nemesis)
+            )
 
         self._taux = self.taux_remplissage()
         self._episode_ended = False
@@ -201,60 +244,72 @@ class WindowEnv(BaseEnv):
 
 
     def to_observation(self):
-        ret = self._taux.copy()
-        if self.strategie!=3:
-            return ret
-        else:
+        if self.strategie==3:
+            ret = self._taux.copy()
             # TODO Essayer
             # # On retourne au programme dans le cas de la stratégie 3 le nombre de case restante
             # ret[0] = (self._state == 0).sum()
             return ret
+        elif self.strategie==101:
+            ret = np.vstack((self.nemesis,self._next_neighbours)).astype(np.float32)
+            return ret
+        elif self.strategie==102:
+            ret = np.vstack((self.nemesis,self._next_neighbours,self._taux[1:])).astype(np.float32)
+            return ret
+        else:
+            return self._taux.copy()
 
-    def neighbours(self):         # <-------------------------ak UPDATE
+    def next_neighbours(self):         # <-------------------------ak UPDATE
         # Convert coordinate of _next_position from 1D to 2D grid
-        xy = self._next_position[-1] % self.dimension
-        x = int(xy // self.dimension**0.5)
-        y = int(xy % self.dimension**0.5)
+        self._next_neighbours = np.full((len(self.tuiles),),0,dtype=np.float32)
+        if self._next_position is not None:
+            xy = self._next_position[-1]
+            n = int(self.dimension**0.5)
+            x = xy // n
+            y = xy % n
 
-        # Reshape the _state as a 2D grid to determine closest neighbours
-        state_reshaped = self._state.reshape(int(self.dimension**0.5), -1)
+            # Reshape the _state as a 2D grid to determine closest neighbours
+            state_reshaped = self._state.reshape((n, -1))
 
-        neighbours = []
+            neighbours = [] # Tableau des voisins (commence par 1 pour le premier element)
 
-        # north
-        if y-1 >0:
-            neighbours.append(state_reshaped[y-1, x])
+            # north
+            if y-1 >0:
+                neighbours.append(state_reshaped[y-1, x])
 
-        # north_east
-        if x+1 >0 and y-1 >0:
-            neighbours.append(state_reshaped[y-1, x+1])
+            # north_east
+            if x+1 <n and y-1 >0:
+                neighbours.append(state_reshaped[y-1, x+1])
 
-        # east
-        if x+1 >0:
-            neighbours.append(state_reshaped[y, x+1])
+            # east
+            if x+1 <n:
+                neighbours.append(state_reshaped[y, x+1])
 
-        # south_east
-        if x+1 >0 and y+1 >0:
-            neighbours.append(state_reshaped[y+1, x+1])
+            # south_east
+            if x+1 <n and y+1 <n:
+                neighbours.append(state_reshaped[y+1, x+1])
 
-        # south
-        if y+1 >0:
-            neighbours.append(state_reshaped[y+1, x])
+            # south
+            if y+1 <n:
+                neighbours.append(state_reshaped[y+1, x])
 
-        # south_west
-        if x-1 >0 and y+1 >0:
-            neighbours.append(state_reshaped[y+1, x-1])
+            # south_west
+            if x-1 >0 and y+1 <n:
+                neighbours.append(state_reshaped[y+1, x-1])
 
-        # west
-        if x-1 >0:
-            neighbours.append(state_reshaped[y, x-1])
+            # west
+            if x-1 >0:
+                neighbours.append(state_reshaped[y, x-1])
 
-        # north_west
-        if x-1 >0 and y-1 >0:
-            neighbours.append(state_reshaped[y-1, x-1])
+            # north_west
+            if x-1 >0 and y-1 >0:
+                neighbours.append(state_reshaped[y-1, x-1])
 
-        return neighbours
-        ################################################
+            neighbours  = np.array(neighbours)-1 # SHIFT POUR AVOIR DES LEGUMES QUI COMMENCENT A 0
+            ind,count_ = np.unique(neighbours[neighbours!=-1],return_counts=True)
+            self._next_neighbours[ind] = count_
+        self._next_neighbours = self._next_neighbours/9*2-1 # Normalisation car 9 voisins
+            ################################################
 
 
     def _step(self, action):
@@ -281,7 +336,8 @@ class WindowEnv(BaseEnv):
         new_taux = self.taux_remplissage() # NOUVEAU TAUX, LES ANCIENS SONT ENCORE DANS self._taux
         new_value = self.evaluate_grid()
         self._last_position = self._next_position
-        self._next_position = self.next_position()
+        self._last_neighbours = self._next_neighbours.copy()
+        self.next_position()
 
 
         # STRATEGIE = DELTA_VALEUR
@@ -325,14 +381,29 @@ class WindowEnv(BaseEnv):
             if self._next_position is None:
                 reward = 1
                 self._episode_ended = True
-        elif self.strategie == 101:
-            neighbours = self.neighbours()
+        elif self.strategie in [101,102]:
+            # gestion des nemesis
+            rewardnemesis = (self.nemesis[action,:]*((self._last_neighbours+1)/2)*1).sum()
+            reward =rewardnemesis
+            if self.strategie==102:
+                # gestion des taux
+                reward = 0.1
+                oldtx = self._taux[espece_vue]
+                if oldtx<0:
+                    reward = reward
+                else:
+                    reward = -reward-oldtx
+                if rewardnemesis*reward>=0:
+                    reward = rewardnemesis+reward
+                else:
+                    reward = -(abs(rewardnemesis) + abs(reward))
 
-            for neighbour in neighbours:
-                if neighbour in self.nemesis[action,:]:
-                    reward = -0.5       # Penalty of -0.5 if at least one nemesis
-                    self._episode_ended = True
-                    break
+
+            if self._next_position is None:
+                if self.strategie==101:
+                    reward = 1
+                self._episode_ended = True
+
         else:
             raise Exception
 
@@ -349,6 +420,8 @@ class WindowEnv(BaseEnv):
         else:
             result = ts.termination(self.to_observation(), reward)
         return result
+
+
 
 
     def render_strings(self):
