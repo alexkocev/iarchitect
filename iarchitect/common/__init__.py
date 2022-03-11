@@ -3,7 +3,7 @@ import io
 import numpy as np
 from PIL import Image
 
-from iarchitect.render import create_list_video
+from iarchitect.render import create_list_video, create_list_gif
 
 
 def show_policy_behaviour(environment,policy,max_iter,one_episode_only=True):
@@ -17,14 +17,10 @@ def show_policy_behaviour(environment,policy,max_iter,one_episode_only=True):
         results.append((action_step.action.numpy(),time_step.reward.numpy(),time_step.observation.numpy()))
     return results
 
-
-
-def create_policy_eval_video(tf_env,py_env,
-                             policy,
-                             filename,
-                             num_episodes=5,
-                             fps=30,each_n_action=1,
-                             embed=True):
+def common_create_policy_eval(tf_env,py_env,
+                              policy,
+                              num_episodes=5,
+                              each_n_action=1):
     images = []
     for _ in range(num_episodes):
         time_step = tf_env.reset()
@@ -44,6 +40,23 @@ def create_policy_eval_video(tf_env,py_env,
         if not plotted:
             img = py_env.render(mode="rgb_array")
             images.append(Image.fromarray(img))
+    return images
+
+def create_policy_eval_gif(tf_env,py_env,
+                           policy,
+                           filename,
+                           num_episodes=5,
+                           fps=30,each_n_action=1):
+    images = common_create_policy_eval(tf_env,py_env,policy,num_episodes=num_episodes,each_n_action=each_n_action)
+    return create_list_gif(images,filename,fps=fps)
+
+def create_policy_eval_video(tf_env,py_env,
+                             policy,
+                             filename,
+                             num_episodes=5,
+                             fps=30,each_n_action=1,
+                             embed=True):
+    images = common_create_policy_eval(tf_env,py_env,policy,num_episodes=num_episodes,each_n_action=each_n_action)
     return create_list_video(images,filename,embed=embed,fps=fps)
 
 
